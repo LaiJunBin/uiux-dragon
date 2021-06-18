@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>UI/UX Dragon</title>
+
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-width: 100vw;
+            min-height: 100vh;
+            overflow: hidden;
+
+            background: url('./background.png') no-repeat center;
+            background-size: 100%;
+        }
+
+        canvas {
+            filter: drop-shadow(2px 4px 6px black)
+        }
+
+        #textbox {
+            position: fixed;
+            top: 5%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 10em;
+            font-family: 微軟正黑體;
+            user-select: none;
+        }
+    </style>
+</head>
+
+<body>
+    <canvas></canvas>
+    <div id="textbox">
+        Q & A
+    </div>
+
+    <script>
+        class Effect {
+            constructor(object, maxFrame = 100) {
+                this.object = object;
+                this.frame = 0;
+                this.maxFrame = maxFrame;
+                this.ended = false;
+            }
+
+            applyObject() {
+                this.frame++;
+            }
+
+            applyCtx(ctx) {
+                this.frame++;
+                if (this.frame >= this.maxFrame) {
+                    this.ended = true;
+                }
+            }
+
+            reset() {
+
+            }
+        }
+
+        class Pump extends Effect {
+
+            constructor(object) {
+                super(object, 250);
+                this.initScaleX = object.scaleX;
+            }
+
+            applyObject() {
+                super.applyObject();
+                this.object.scaleX = 0.75 + 0.5 * Math.sin((this.frame * 2 % 180) * Math.PI / 180) * Math.random();
+            }
+
+            applyCtx(ctx) {
+                super.applyCtx(ctx);
+                ctx.filter = `hue-rotate(${-45 + this.frame * 4 % 90}deg) brightness(${1 + Math.random()})`;
+            }
+
+            reset() {
+                this.object.scaleX = this.initScaleX;
+            }
+        }
+
+        class LinearPump extends Effect {
+
+            constructor(object) {
+                super(object, 300);
+                this.initScaleX = object.scaleX;
+            }
+
+            applyObject() {
+                super.applyObject();
+                this.object.scaleX = 0.75 + 0.5 * Math.sin((this.frame * 2 % 180) * Math.PI / 180);
+            }
+
+            reset() {
+                this.object.scaleX = this.initScaleX;
+            }
+        }
+
+        class Skew extends Effect {
+
+            constructor(object) {
+                super(object, 100);
+            }
+
+            applyCtx(ctx) {
+                super.applyCtx(ctx);
+                this.object.x = ctx.canvas.width / 2 - this.object.width / 2;
+                this.object.y = ctx.canvas.height / 2 - this.object.height / 1.5;
+                ctx.transform(1, 0.5, 0.5, 1, 0, 0);
+            }
+        }
+
+        class SkewPump extends Effect {
+
+            constructor(object) {
+                super(object, 250);
+            }
+
+            applyCtx(ctx) {
+                super.applyCtx(ctx);
+                this.object.x = ctx.canvas.width / 2 - this.object.width / 2;
+                this.object.y = ctx.canvas.height / 2 - this.object.height / 1.5;
+                ctx.transform(1, Math.random(), Math.random(), 1, 0, 0);
+            }
+        }
+
+        class Boost extends Effect {
+
+            constructor(object) {
+                super(object, 400);
+            }
+
+            applyObject() {
+                super.applyObject();
+                this.object._vx *= 1.05;
+                this.object._vy *= 1.05;
+            }
+        }
+
+        class Shake extends Effect {
+
+            constructor(object) {
+                super(object, 400);
+            }
+
+            applyObject() {
+                super.applyObject();
+                if (Math.random() <= 0.5) {
+                    this.object._vx *= -1;
+                    this.object._vy *= -1;
+                }
+            }
+        }
+
+        class Scale extends Effect {
+
+            constructor(object) {
+                super(object, 400);
+            }
+
+            applyObject() {
+                super.applyObject();
+                this.object.scaleX = 1 + 0.5 * Math.sin((this.frame * 2 % 180) * Math.PI / 180);
+                this.object.scaleY = 1 + 0.5 * Math.sin((this.frame * 2 % 180) * Math.PI / 180);
+            }
+
+            reset() {
+                this.object.scaleX = 1;
+                this.object.scaleY = 1;
+            }
+        }
+
+        class DirError extends Effect {
+
+            constructor(object) {
+                super(object, 200);
+            }
+
+            applyObject() {
+                super.applyObject();
+                if (this.frame % 5 === 0) {
+                    this.object.dirX *= -1
+                    if (Math.random() <= 0.5)
+                        this.object.dirY *= -1
+                }
+            }
+        }
+
+        class Rotate extends Effect {
+            constructor(object) {
+                super(object, 200);
+            }
+
+            applyCtx(ctx) {
+                super.applyCtx(ctx);
+                this.object.angle = this.frame * 5 % 360;
+                this.object.x = ctx.canvas.width / 2 - this.object.width / 2;
+                this.object.y = ctx.canvas.height / 2 - this.object.height / 2;
+                this.object.opacity = this.object.opacity * 0.99 - 0.005;
+            }
+
+            reset() {
+                this.object.angle = 0;
+                this.object.opacity = 1;
+            }
+        }
+
+        class Dragon {
+            constructor() {
+                this.image = new Image();
+                this.image.src = './dragon.svg';
+
+
+                this.width = 1077;
+                this.height = 638;
+                this.x = 0;
+                this.y = 0;
+                this.dirX = 1;
+                this.dirY = 1;
+                this._vx = 3;
+                this._vy = 2;
+                this.angle = 0;
+                this.scaleX = 1;
+                this.scaleY = 1;
+                this.frame = 0;
+                this.opacity = 1;
+                this.effect = null;
+                this.effects = [
+                    Pump,
+                    LinearPump,
+                    SkewPump,
+                    Skew,
+                    Boost,
+                    Rotate,
+                    Shake,
+                    Scale,
+                    DirError,
+                ]
+                this.effectQueue = this.effects.slice().sort(() => Math.random() - 0.5);
+            }
+
+            randomV() {
+                this._vx = 1 + Math.random() * 5;
+                this._vy = 1 + Math.random() * 5;
+            }
+
+            get vx() {
+                return this._vx * this.dirX;
+            }
+
+            get vy() {
+                return this._vy * this.dirY;
+            }
+
+            init() {
+                return new Promise(resolve => this.image.onload = resolve);
+            }
+
+            update(cvs) {
+                this.frame++;
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x + this.width >= cvs.width * 1.05 || this.x <= -cvs.width * 0.05) {
+                    this.dirX *= -1;
+                }
+
+                if (this.y + this.height >= cvs.height * 1.1 || this.y <= -cvs.height * 0.05) {
+                    this.dirY *= -1;
+                }
+
+                if (this.frame && !this.effect && this.frame % 500 === 0) {
+                    this.effect = new (this.effectQueue.shift())(this);
+                    if (this.effectQueue.length === 0) {
+                        this.effectQueue = this.effects.slice().sort(() => Math.random() - 0.5);
+                    }
+                }
+
+                if (this.effect instanceof Effect) {
+                    this.effect.applyObject();
+                }
+
+            }
+
+            render(ctx) {
+                ctx.save();
+                ctx.translate((this.x + this.width / 2), (this.y + this.height / 2));
+                ctx.rotate(Math.PI / 180 * this.angle);
+                ctx.scale(this.scaleX * -Math.sign(this.dirX), this.scaleY);
+                ctx.translate(-(this.x + this.width / 2), -(this.y + this.height / 2));
+                if (this.effect instanceof Effect) {
+                    this.effect.applyCtx(ctx)
+                    if (this.effect.ended) {
+                        this.effect.reset();
+                        this.effect = null;
+                    }
+                }
+                ctx.globalAlpha = this.opacity;
+                ctx.drawImage(this.image, 0, 0, this.image.width, this.image.height, this.x, this.y, this.width, this.height);
+                ctx.restore();
+            }
+        }
+
+        class Canvas {
+            constructor(selector) {
+                this.container = document.querySelector(selector);
+                this.cvs = document.querySelector('canvas');
+                this.ctx = this.cvs.getContext('2d');
+                this.cvs.width = this.container.offsetWidth;
+                this.cvs.height = this.container.offsetHeight;
+                this.frame = 0;
+
+                this.objects = [];
+            }
+
+            addObject(object) {
+                this.objects.push(object);
+            }
+
+            init() {
+                return Promise.all(this.objects.map(object => object.init()));
+            }
+
+            update() {
+                this.frame++;
+                if (this.frame % 50 === 0) {
+                    this.objects.forEach(object => object.randomV());
+                }
+                this.objects.forEach(object => object.update(this.cvs));
+                this.render();
+                requestAnimationFrame(this.update.bind(this));
+            }
+
+            render() {
+                this.ctx.clearRect(0, 0, this.cvs.width, this.cvs.height);
+                this.objects.forEach(object => object.render(this.ctx));
+            }
+        }
+
+        const canvas = new Canvas('body');
+        canvas.addObject(new Dragon());
+        canvas.init().then(() => canvas.update());
+    </script>
+</body>
+
+</html>
