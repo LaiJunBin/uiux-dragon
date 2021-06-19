@@ -410,7 +410,7 @@
                 this.dirY = 1;
             }
 
-            if (this.frame && !this.effect && this.frame % 200 === 0) {
+            if (this.frame && !this.effect && this.frame % 500 === 0) {
                 this.effect = new (this.effectQueue.shift())(this);
                 if (this.effectQueue.length === 0) {
                     this.effectQueue = this.effects.slice().sort(() => Math.random() - 0.5);
