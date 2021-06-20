@@ -176,6 +176,24 @@
         }
     }
 
+    class Small extends Effect {
+
+        constructor(object) {
+            super(object, 300);
+        }
+
+        applyObject() {
+            super.applyObject();
+            this.object.scaleX = 0.5;
+            this.object.scaleY = 0.5;
+        }
+
+        reset() {
+            this.object.scaleX = 1;
+            this.object.scaleY = 1;
+        }
+    }
+
     class ShadowMove extends Effect {
 
         constructor(object) {
@@ -228,6 +246,95 @@
             const y = this.frame * Math.sign(this.object.dirY) * Math.random();
             const color = Math.random().toString(16).substr(2, 6);
             ctx.filter = `drop-shadow(${x}px ${y}px 6px #${color}) brightness(1.5)`;
+        }
+    }
+
+    class ShadowCenter extends Effect {
+
+        constructor(object) {
+            super(object, 300);
+            this.scale = 10;
+        }
+
+        applyCtx(ctx) {
+            super.applyCtx(ctx);
+            ctx.save();
+            ctx.fillStyle = "#333";
+            ctx.fillRect(
+                -ctx.canvas.width*2,
+                -ctx.canvas.height*2,
+                ctx.canvas.width*4,
+                ctx.canvas.height*4
+            );
+            ctx.globalCompositeOperation = "destination-in";
+
+            ctx.drawImage(
+                this.object.image,
+                0,
+                0,
+                this.object.image.width,
+                this.object.image.height,
+                this.object.x - Math.min(50, this.frame) * this.scale,
+                this.object.y - Math.min(50, this.frame) * this.scale,
+                this.object.width + Math.min(50, this.frame) * 2 * this.scale,
+                this.object.height + Math.min(50, this.frame) * 2 * this.scale
+            );
+            ctx.restore();
+        }
+    }
+
+    class PrototypePump extends Effect {
+
+        constructor(object) {
+            super(object, 150);
+            this.amount = 10;
+        }
+
+        applyCtx(ctx) {
+            super.applyCtx(ctx);
+            for(let i = 0; i < this.amount; i++){
+                ctx.drawImage(
+                    this.object.image,
+                    0,
+                    0,
+                    this.object.image.width,
+                    this.object.image.height,
+                    this.object.x + Math.random() * 100 - 50,
+                    this.object.y + Math.random() * 100 - 50,
+                    this.object.width,
+                    this.object.height
+                );
+            }
+
+        }
+    }
+
+    class PrototypeColorfulPump extends Effect {
+
+        constructor(object) {
+            super(object, 250);
+            this.amount = 20;
+        }
+
+        applyCtx(ctx) {
+            super.applyCtx(ctx);
+            for(let i = 0; i < this.amount; i++){
+                ctx.save();
+                ctx.filter = `hue-rotate(${-45 + this.frame * 4 % 90}deg) brightness(${1 + Math.random()})`;
+                ctx.drawImage(
+                    this.object.image,
+                    0,
+                    0,
+                    this.object.image.width,
+                    this.object.image.height,
+                    this.object.x + Math.random() * 100 - 50,
+                    this.object.y + Math.random() * 100 - 50,
+                    this.object.width,
+                    this.object.height
+                );
+                ctx.restore();
+            }
+
         }
     }
 
@@ -325,17 +432,16 @@
     }
 
     class Dragon {
-        constructor() {
+        constructor(x = 0, y = 0) {
             this.image = new Image();
             this.image.src = './dragon.svg';
-
 
             this.width = document.body.offsetWidth * 0.55;
             this.height = this.width * 0.6;
 
-
-            this.x = 0;
-            this.y = 0;
+            this.inbound = false;
+            this.x = x;
+            this.y = y;
             this.dirX = 1;
             this.dirY = 1;
             this._vx = 3;
@@ -355,6 +461,7 @@
                 Skew,
                 Boost,
                 SmallBoost,
+                Small,
                 Rotate,
                 Shake,
                 Scale,
@@ -363,6 +470,9 @@
                 ShadowShoot,
                 ShadowPump,
                 ColorfulShadowPump,
+                ShadowCenter,
+                PrototypePump,
+                PrototypeColorfulPump,
                 Mosaic,
                 MosaicFadeOut,
             ]
@@ -398,6 +508,15 @@
                 this.randomV();
             }
 
+            if(
+                !this.inbound &&
+                this.x >= 0 && this.x + this.width <= cvs.width &&
+                this.y >= 0 && this.y + this.height <= cvs.height
+            ){
+                this.inbound = true;
+                this.frame = 0;
+            }
+
             if (this.x + this.width >= cvs.width * 1.05) {
                 this.dirX = -1;
             } else if (this.x <= -cvs.width * 0.05) {
@@ -410,7 +529,11 @@
                 this.dirY = 1;
             }
 
-            if (this.frame && !this.effect && this.frame % 500 === 0) {
+            if (
+                this.inbound &&
+                this.frame && !this.effect &&
+                this.frame % 500 === 0
+            ) {
                 this.effect = new (this.effectQueue.shift())(this);
                 if (this.effectQueue.length === 0) {
                     this.effectQueue = this.effects.slice().sort(() => Math.random() - 0.5);
@@ -476,7 +599,7 @@
     }
 
     const canvas = new Canvas('body');
-    canvas.addObject(new Dragon());
+    canvas.addObject(new Dragon(document.body.offsetWidth + 1000, document.body.offsetHeight + 1000));
     canvas.init().then(() => canvas.update());
 </script>
 </body>
